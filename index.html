@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>ЭПУ · Диспетчер ППР</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F5F4; --panel:#FFFFFF; --panel-2:#EBF0EE;
+  --line:#DBE3E0; --line-strong:#C3CFCA;
+  --ink:#152321; --ink-2:#4E5F5C; --ink-3:#84948F;
+  --teal:#0E7C86; --teal-ink:#08464C; --teal-bg:#DEEEEF;
+  --red:#B33B2E; --red-ink:#7A281F; --red-bg:#F7E2DE;
+  --amber:#B9761C; --amber-ink:#7A4E10; --amber-bg:#F6E8D3;
+  --green:#2E7D4F; --green-ink:#1E5636; --green-bg:#DFEFE4;
+  --font-sans:'IBM Plex Sans',-apple-system,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,monospace;
+  --radius:6px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1514; --panel:#161F1E; --panel-2:#1C2726;
+    --line:#2B3735; --line-strong:#3B4A47;
+    --ink:#E7EEEC; --ink-2:#A8B8B4; --ink-3:#71827E;
+    --teal:#4FC3CB; --teal-ink:#BFEEF1; --teal-bg:#173537;
+    --red:#E4776A; --red-ink:#FBD9D3; --red-bg:#3B211D;
+    --amber:#E5A94C; --amber-ink:#FBE3BC; --amber-bg:#3A2C15;
+    --green:#6FC98F; --green-ink:#D6F0DE; --green-bg:#1B3324;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1514; --panel:#161F1E; --panel-2:#1C2726;
+  --line:#2B3735; --line-strong:#3B4A47;
+  --ink:#E7EEEC; --ink-2:#A8B8B4; --ink-3:#71827E;
+  --teal:#4FC3CB; --teal-ink:#BFEEF1; --teal-bg:#173537;
+  --red:#E4776A; --red-ink:#FBD9D3; --red-bg:#3B211D;
+  --amber:#E5A94C; --amber-ink:#FBE3BC; --amber-bg:#3A2C15;
+  --green:#6FC98F; --green-ink:#D6F0DE; --green-bg:#1B3324;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-sans);font-size:14px;line-height:1.5;}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 20px 60px;}
+.topbar{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px;border-bottom:1px solid var(--line);padding-bottom:16px;}
+.brand{display:flex;align-items:baseline;gap:10px;}
+.brand .mark{font-family:var(--font-mono);font-size:13px;color:var(--teal);border:1px solid var(--teal);border-radius:4px;padding:2px 6px;}
+.brand h1{font-size:18px;font-weight:600;margin:0;}
+.brand .sub{color:var(--ink-3);font-size:13px;}
+select, input, button, textarea{font-family:var(--font-sans);font-size:13px;color:var(--ink);}
+.select-site{background:var(--panel);border:1px solid var(--line-strong);border-radius:var(--radius);padding:7px 10px;min-width:220px;}
+.tabs{display:flex;gap:2px;margin-bottom:18px;border-bottom:1px solid var(--line);}
+.tab{padding:9px 16px;font-size:13px;color:var(--ink-2);cursor:pointer;border-bottom:2px solid transparent;user-select:none;}
+.tab.active{color:var(--teal);border-bottom-color:var(--teal);font-weight:500;}
+.tab:hover:not(.active){color:var(--ink);}
+.view{display:none;}
+.view.active{display:block;}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px;}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;}
+.kpi .n{font-family:var(--font-mono);font-size:26px;font-weight:500;}
+.kpi .l{color:var(--ink-2);font-size:12px;margin-top:4px;}
+.kpi.warn .n{color:var(--red);}
+.kpi.ok .n{color:var(--teal);}
+section.block{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:18px;overflow:hidden;}
+.block h2{font-size:13px;font-weight:600;margin:0;padding:12px 16px;border-bottom:1px solid var(--line);color:var(--ink);}
+.block .empty{padding:20px 16px;color:var(--ink-3);font-size:13px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{text-align:left;font-weight:500;color:var(--ink-2);font-size:12px;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap;}
+tbody td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--panel-2);}
+.mono{font-family:var(--font-mono);font-size:12.5px;color:var(--ink-2);}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:middle;}
+.dot.red{background:var(--red);} .dot.amber{background:var(--amber);} .dot.green{background:var(--green);} .dot.grey{background:var(--ink-3);}
+.badge{display:inline-block;font-size:11.5px;padding:2px 8px;border-radius:20px;font-weight:500;white-space:nowrap;}
+.badge.red{background:var(--red-bg);color:var(--red-ink);}
+.badge.amber{background:var(--amber-bg);color:var(--amber-ink);}
+.badge.green{background:var(--green-bg);color:var(--green-ink);}
+.badge.grey{background:var(--panel-2);color:var(--ink-2);}
+.row-actions{display:flex;gap:6px;flex-wrap:wrap;}
+button.btn{background:transparent;border:1px solid var(--line-strong);border-radius:var(--radius);padding:5px 10px;cursor:pointer;color:var(--ink);}
+button.btn:hover{background:var(--panel-2);}
+button.btn.primary{background:var(--teal);border-color:var(--teal);color:#fff;}
+button.btn.primary:hover{opacity:.9;}
+button.btn.danger{border-color:var(--red);color:var(--red-ink);}
+button.btn.small{padding:4px 8px;font-size:12px;}
+.formgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);}
+.formgrid label{display:block;font-size:11.5px;color:var(--ink-2);margin-bottom:4px;}
+.formgrid input, .formgrid select, .formgrid textarea{width:100%;background:var(--bg);border:1px solid var(--line-strong);border-radius:var(--radius);padding:7px 9px;}
+.formactions{padding:0 16px 14px;display:flex;justify-content:flex-end;}
+.filters{display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+.filters select{background:var(--bg);border:1px solid var(--line-strong);border-radius:var(--radius);padding:6px 8px;}
+.err{color:var(--red);font-size:12px;margin-top:6px;}
+.hint{color:var(--ink-3);font-size:12px;margin-top:14px;}
+.overflow{overflow-x:auto;}
+@media (max-width:640px){
+  .tabs{overflow-x:auto;white-space:nowrap;}
+  thead{display:none;}
+  tbody tr{display:block;border-bottom:6px solid var(--bg);}
+  tbody td{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);}
+  tbody td::before{content:attr(data-label);color:var(--ink-3);font-size:11.5px;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand">
+      <span class="mark">ЭПУ</span>
+      <div>
+        <h1>Диспетчер ППР и дефектов</h1>
+        <div class="sub">Электропитающие установки оборудования связи</div>
+      </div>
+    </div>
+    <select class="select-site" id="siteFilter"></select>
+  </div>
+
+  <div class="kpis" id="kpiRow"></div>
+
+  <div class="tabs">
+    <div class="tab active" data-view="overview">Обзор</div>
+    <div class="tab" data-view="schedule">График ТО</div>
+    <div class="tab" data-view="equipment">Оборудование</div>
+    <div class="tab" data-view="defects">Дефекты</div>
+  </div>
+
+  <div class="view active" id="view-overview">
+    <section class="block">
+      <h2>Ближайшие и просроченные ТО (14 дней)</h2>
+      <div class="overflow"><table id="tblOverviewSchedule"><thead><tr>
+        <th>Объект</th><th>Оборудование</th><th>Вид ТО</th><th>Срок</th><th>Статус</th>
+      </tr></thead><tbody></tbody></table></div>
+    </section>
+    <section class="block">
+      <h2>Открытые дефекты высокой и критической критичности</h2>
+      <div class="overflow"><table id="tblOverviewDefects"><thead><tr>
+        <th>Объект</th><th>Оборудование</th><th>Критичность</th><th>Статус</th><th>Срок SLA</th>
+      </tr></thead><tbody></tbody></table></div>
+    </section>
+  </div>
+
+  <div class="view" id="view-schedule">
+    <section class="block">
+      <div class="filters">
+        <select id="schedGroupFilter">
+          <option value="all">Все сроки</option>
+          <option value="overdue">Просрочено</option>
+          <option value="soon">Ближайшие 7 дней</option>
+          <option value="later">Позже</option>
+        </select>
+      </div>
+      <div class="overflow"><table id="tblSchedule"><thead><tr>
+        <th>Объект</th><th>Оборудование</th><th>Тип</th><th>Вид ТО</th><th>Посл. ТО</th><th>След. ТО</th><th>Статус</th><th></th>
+      </tr></thead><tbody></tbody></table></div>
+      <div class="empty" id="scheduleEmpty" style="display:none;">Нет записей по выбранному фильтру.</div>
+    </section>
+  </div>
+
+  <div class="view" id="view-equipment">
+    <section class="block">
+      <h2>Добавить оборудование</h2>
+      <div class="formgrid">
+        <div><label>Объект</label><input id="eqObject" placeholder="Усть-Каменогорск, АТС-3"></div>
+        <div><label>Оборудование</label><input id="eqName" placeholder="ИБП-2, зал №1"></div>
+        <div><label>Тип</label><select id="eqType">
+          <option>АКБ</option><option>ДГУ</option><option>ИБП</option><option>ЩПТ/ВУ</option><option>Кондиционер</option>
+        </select></div>
+        <div><label>Вид ТО</label><select id="eqToType">
+          <option value="30">ТО-1 (30 дн.)</option><option value="90">ТО-2 (90 дн.)</option>
+          <option value="180">ТО-3 (180 дн.)</option><option value="365">ТО-4 (365 дн.)</option>
+        </select></div>
+        <div><label>Дата последнего ТО</label><input type="date" id="eqLastDate"></div>
+        <div><label>Ответственный</label><input id="eqResp" placeholder="Бекова А."></div>
+      </div>
+      <div class="formactions" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <button class="btn" id="importCsvBtn">Загрузить список из файла (CSV)</button>
+          <input type="file" id="csvFileInput" accept=".csv,text/csv" style="display:none;">
+          <button class="btn small" id="downloadTemplateBtn">Скачать шаблон CSV</button>
+        </div>
+        <button class="btn primary" id="addEquipmentBtn">Добавить оборудование</button>
+      </div>
+      <div class="err" id="eqErr" style="display:none;padding:0 16px 12px;"></div>
+      <div class="err" id="csvErr" style="display:none;padding:0 16px 12px;"></div>
+    </section>
+    <section class="block">
+      <h2>Реестр оборудования</h2>
+      <div class="overflow"><table id="tblEquipment"><thead><tr>
+        <th>Объект</th><th>Оборудование</th><th>Тип</th><th>Вид ТО</th><th>Посл. ТО</th><th>След. ТО</th><th>Статус</th><th>Ответств.</th><th></th>
+      </tr></thead><tbody></tbody></table></div>
+    </section>
+  </div>
+
+  <div class="view" id="view-defects">
+    <section class="block">
+      <h2>Зарегистрировать дефект</h2>
+      <div class="formgrid">
+        <div><label>Объект</label><input id="dfObject" placeholder="Риддер, РУС"></div>
+        <div><label>Оборудование</label><input id="dfEquip" placeholder="ДГУ-1"></div>
+        <div><label>Критичность</label><select id="dfSeverity">
+          <option value="critical">Критический</option><option value="high">Высокий</option>
+          <option value="medium" selected>Средний</option><option value="low">Низкий</option>
+        </select></div>
+        <div><label>Исполнитель</label><input id="dfAssignee" placeholder="Иванов П."></div>
+        <div style="grid-column:1/-1;"><label>Описание дефекта</label><textarea id="dfDesc" rows="2" placeholder="Кратко опишите неисправность"></textarea></div>
+        <div style="grid-column:1/-1;"><label>Фото / файл-доказательство (необязательно, до 3 МБ на файл)</label><input type="file" id="dfFile" accept="image/*,.pdf,.doc,.docx" multiple></div>
+      </div>
+      <div class="formactions"><button class="btn primary" id="addDefectBtn">Зарегистрировать</button></div>
+      <div class="err" id="dfErr" style="display:none;padding:0 16px 12px;"></div>
+    </section>
+    <section class="block">
+      <h2>Журнал дефектов</h2>
+      <div class="filters">
+        <select id="dfSeverityFilter">
+          <option value="all">Любая критичность</option>
+          <option value="critical">Критический</option><option value="high">Высокий</option>
+          <option value="medium">Средний</option><option value="low">Низкий</option>
+        </select>
+        <select id="dfStatusFilter">
+          <option value="all">Любой статус</option>
+          <option value="new">Новый</option><option value="in_progress">В работе</option><option value="resolved">Устранён</option>
+        </select>
+      </div>
+      <div class="overflow"><table id="tblDefects"><thead><tr>
+        <th>Объект</th><th>Оборудование</th><th>Описание</th><th>Критичность</th><th>Статус</th><th>Срок SLA</th><th>Исполнитель</th><th>Файлы</th><th></th>
+      </tr></thead><tbody></tbody></table></div>
+      <div class="empty" id="defectsEmpty" style="display:none;">Нет дефектов по выбранному фильтру.</div>
+    </section>
+  </div>
+
+  <div class="hint">Данные хранятся локально в этом браузере (localStorage) и не передаются на сервер. Это рабочий прототип — черновик для дальнейшей доработки под ваши регламенты.</div>
+</div>
+
+<script>
+const STORAGE_KEY = "epu_ppr_dispatcher_v1";
+const TO_LABEL = {30:"ТО-1",90:"ТО-2",180:"ТО-3",365:"ТО-4"};
+function toLabel(periodDays){ return TO_LABEL[periodDays] || (periodDays+" дн."); }
+const SEV_LABEL = {critical:"Критический",high:"Высокий",medium:"Средний",low:"Низкий"};
+const SEV_SLA_HOURS = {critical:4,high:24,medium:72,low:240};
+const STATUS_LABEL = {new:"Новый",in_progress:"В работе",resolved:"Устранён"};
+
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function addDaysISO(iso, days){ const d=new Date(iso+"T00:00:00"); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
+function daysDiff(aISO,bISO){ const a=new Date(aISO+"T00:00:00"), b=new Date(bISO+"T00:00:00"); return Math.round((b-a)/86400000); }
+function fmtDate(iso){ if(!iso) return "—"; const [y,m,d]=iso.split("-"); return d+"."+m+"."+y; }
+function fmtDateTime(iso){ const d=new Date(iso); return fmtDate(iso.slice(0,10))+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
+function uid(prefix){ return prefix+"_"+Math.random().toString(36).slice(2,9); }
+
+const MAX_FILE_BYTES = 3*1024*1024;
+function readFileAsDataURL(file){
+  return new Promise((resolve,reject)=>{
+    const r = new FileReader();
+    r.onload = ()=>resolve({name:file.name, dataUrl:r.result, size:file.size});
+    r.onerror = ()=>reject(new Error("Не удалось прочитать файл: "+file.name));
+    r.readAsDataURL(file);
+  });
+}
+
+function parseCsv(text){
+  const clean = text.replace(/^\uFEFF/, "").replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+  const allRows = [];
+  let row = [], field = "", inQuotes = false;
+  for(let i=0;i<clean.length;i++){
+    const c = clean[i];
+    if(inQuotes){
+      if(c === '"'){
+        if(clean[i+1] === '"'){ field += '"'; i++; }
+        else { inQuotes = false; }
+      } else { field += c; }
+    } else {
+      if(c === '"'){ inQuotes = true; }
+      else if(c === ','){ row.push(field); field=""; }
+      else if(c === '\n'){ row.push(field); allRows.push(row); row=[]; field=""; }
+      else { field += c; }
+    }
+  }
+  if(field.length || row.length){ row.push(field); allRows.push(row); }
+  const rows = allRows.map(r=>r.map(c=>c.trim())).filter(r=>r.some(c=>c.length>0));
+  if(rows.length<2) throw new Error("Файл пустой или содержит только заголовок.");
+  return rows.slice(1);
+}
+
+function toCsvField(v){
+  const s = String(v==null?"":v);
+  return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+
+function csvTemplateText(){
+  return "Объект,Оборудование,Тип,ПериодДней,ПоследнееТО,Ответственный\n"+
+    "Усть-Каменогорск, АТС-3,ИБП-3,ИБП,30,2026-08-15,Иванов И.\n"+
+    "Риддер, РУС,ДГУ-2,ДГУ,90,2026-06-01,Петров П.\n";
+}
+
+function seedData(){
+  const t = todayISO();
+  const equipment = [
+    {id:uid("eq"),object:"Усть-Каменогорск, АТС-3",name:"АКБ-1, стойка А",type:"АКБ",periodDays:30,lastDate:addDaysISO(t,-40),resp:"Бекова А."},
+    {id:uid("eq"),object:"Усть-Каменогорск, АТС-3",name:"ИБП-2, зал №1",type:"ИБП",periodDays:30,lastDate:addDaysISO(t,-5),resp:"Бекова А."},
+    {id:uid("eq"),object:"Усть-Каменогорск, АТС-3",name:"ЩПТ-1",type:"ЩПТ/ВУ",periodDays:90,lastDate:addDaysISO(t,-95),resp:"Сериков Д."},
+    {id:uid("eq"),object:"Риддер, РУС",name:"ДГУ-1",type:"ДГУ",periodDays:30,lastDate:addDaysISO(t,-27),resp:"Иванов П."},
+    {id:uid("eq"),object:"Риддер, РУС",name:"ДГУ-1 (квартальное)",type:"ДГУ",periodDays:90,lastDate:addDaysISO(t,-88),resp:"Иванов П."},
+    {id:uid("eq"),object:"Зыряновск, УС",name:"АКБ-2, стойка Б",type:"АКБ",periodDays:90,lastDate:addDaysISO(t,-10),resp:"Тлеуов Р."},
+    {id:uid("eq"),object:"Зыряновск, УС",name:"Кондиционер зала связи",type:"Кондиционер",periodDays:90,lastDate:addDaysISO(t,-2),resp:"Тлеуов Р."},
+    {id:uid("eq"),object:"Шемонаиха, УС",name:"ИБП-1",type:"ИБП",periodDays:30,lastDate:addDaysISO(t,-1),resp:"Ким В."},
+    {id:uid("eq"),object:"Курчатов, УС",name:"ЭПУ комплексная проверка",type:"АКБ",periodDays:180,lastDate:addDaysISO(t,-170),resp:"Ким В."},
+  ];
+  const defects = [
+    {id:uid("df"),object:"Риддер, РУС",equip:"ДГУ-1",desc:"Отказ автозапуска при пропадании сети, объект без резерва",severity:"critical",status:"new",created:new Date(Date.now()-2*3600*1000).toISOString(),resolved:null,assignee:"Иванов П."},
+    {id:uid("df"),object:"Усть-Каменогорск, АТС-3",equip:"АКБ-1, стойка А",desc:"Просадка ёмкости ниже 70% по результатам контрольного разряда",severity:"high",status:"in_progress",created:new Date(Date.now()-20*3600*1000).toISOString(),resolved:null,assignee:"Сериков Д."},
+    {id:uid("df"),object:"Зыряновск, УС",equip:"Кондиционер зала связи",desc:"Повышенная температура в зале, требуется дозаправка хладагентом",severity:"medium",status:"new",created:new Date(Date.now()-30*3600*1000).toISOString(),resolved:null,assignee:""},
+    {id:uid("df"),object:"Шемонаиха, УС",equip:"ИБП-1",desc:"Единичное срабатывание сигнализации перегрева, не подтвердилось",severity:"low",status:"resolved",created:new Date(Date.now()-9*24*3600*1000).toISOString(),resolved:new Date(Date.now()-8*24*3600*1000).toISOString(),assignee:"Ким В."},
+    {id:uid("df"),object:"Курчатов, УС",equip:"ЩПТ",desc:"Ослабление контактного соединения по данным тепловизионного контроля",severity:"high",status:"new",created:new Date(Date.now()-50*3600*1000).toISOString(),resolved:null,assignee:""},
+  ];
+  return {equipment, defects};
+}
+
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) throw new Error("empty");
+    return JSON.parse(raw);
+  }catch(e){
+    const seeded = seedData();
+    save(seeded);
+    return seeded;
+  }
+}
+function save(data){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }catch(e){ console.error("storage error",e); }
+}
+
+let DATA = load();
+
+function allObjects(){
+  const set = new Set();
+  DATA.equipment.forEach(e=>set.add(e.object));
+  DATA.defects.forEach(d=>set.add(d.object));
+  return Array.from(set).sort();
+}
+
+function eqNextDate(eq){ return addDaysISO(eq.lastDate, eq.periodDays); }
+function eqStatus(eq){
+  const d = daysDiff(todayISO(), eqNextDate(eq));
+  if(d < 0) return "overdue";
+  if(d <= 7) return "soon";
+  return "ok";
+}
+function statusBadge(status){
+  if(status==="overdue") return '<span class="badge red"><span class="dot red"></span>просрочено</span>';
+  if(status==="soon") return '<span class="badge amber"><span class="dot amber"></span>скоро</span>';
+  return '<span class="badge green"><span class="dot green"></span>в норме</span>';
+}
+function sevBadge(sev){
+  const cls = sev==="critical"?"red":sev==="high"?"amber":sev==="medium"?"grey":"grey";
+  return '<span class="badge '+cls+'">'+SEV_LABEL[sev]+'</span>';
+}
+function defectDeadline(df){
+  return new Date(new Date(df.created).getTime() + SEV_SLA_HOURS[df.severity]*3600*1000);
+}
+function defectSlaBadge(df){
+  if(df.status==="resolved") return '<span class="badge green">устранён '+fmtDateTime(df.resolved)+'</span>';
+  const dl = defectDeadline(df);
+  const overdue = new Date() > dl;
+  return '<span class="badge '+(overdue?"red":"amber")+'">'+(overdue?"просрочен · ":"до ")+fmtDateTime(dl.toISOString())+'</span>';
+}
+
+function currentSite(){ return document.getElementById("siteFilter").value; }
+function siteMatches(objectName){ const s=currentSite(); return s==="all" || s===objectName; }
+
+function renderSiteFilter(){
+  const sel = document.getElementById("siteFilter");
+  const prev = sel.value || "all";
+  const objs = allObjects();
+  sel.innerHTML = '<option value="all">Все объекты</option>' + objs.map(o=>'<option value="'+o.replace(/"/g,"&quot;")+'">'+o+'</option>').join("");
+  sel.value = objs.includes(prev) ? prev : "all";
+}
+
+function renderKpis(){
+  const eqAll = DATA.equipment.filter(e=>siteMatches(e.object));
+  const overdue = eqAll.filter(e=>eqStatus(e)==="overdue").length;
+  const soon = eqAll.filter(e=>eqStatus(e)==="soon").length;
+  const dfAll = DATA.defects.filter(d=>siteMatches(d.object) && d.status!=="resolved");
+  const critical = dfAll.filter(d=>d.severity==="critical").length;
+  const kpis = [
+    {n:eqAll.length, l:"Единиц оборудования", cls:""},
+    {n:overdue, l:"Просрочено ТО", cls:overdue>0?"warn":"ok"},
+    {n:soon, l:"ТО в ближайшие 7 дней", cls:""},
+    {n:dfAll.length, l:"Открытых дефектов", cls:dfAll.length>0?"warn":"ok"},
+    {n:critical, l:"из них критических", cls:critical>0?"warn":"ok"},
+  ];
+  document.getElementById("kpiRow").innerHTML = kpis.map(k=>
+    '<div class="kpi '+k.cls+'"><div class="n">'+k.n+'</div><div class="l">'+k.l+'</div></div>'
+  ).join("");
+}
+
+function renderOverview(){
+  const eqAll = DATA.equipment.filter(e=>siteMatches(e.object)).map(e=>({e, status:eqStatus(e), days:daysDiff(todayISO(), eqNextDate(e))}))
+    .filter(x=>x.days<=14).sort((a,b)=>a.days-b.days);
+  const tb1 = document.querySelector("#tblOverviewSchedule tbody");
+  tb1.innerHTML = eqAll.length ? eqAll.map(x=>
+    '<tr><td data-label="Объект">'+x.e.object+'</td><td data-label="Оборудование">'+x.e.name+'</td>'+
+    '<td data-label="Вид ТО" class="mono">'+toLabel(x.e.periodDays)+'</td>'+
+    '<td data-label="Срок" class="mono">'+fmtDate(eqNextDate(x.e))+'</td>'+
+    '<td data-label="Статус">'+statusBadge(x.status)+'</td></tr>'
+  ).join("") : '<tr><td colspan="5" style="color:var(--ink-3);">Нет ТО в ближайшие 14 дней</td></tr>';
+
+  const dfAll = DATA.defects.filter(d=>siteMatches(d.object) && d.status!=="resolved" && (d.severity==="critical"||d.severity==="high"))
+    .sort((a,b)=>new Date(a.created)-new Date(b.created));
+  const tb2 = document.querySelector("#tblOverviewDefects tbody");
+  tb2.innerHTML = dfAll.length ? dfAll.map(d=>
+    '<tr><td data-label="Объект">'+d.object+'</td><td data-label="Оборудование">'+d.equip+'</td>'+
+    '<td data-label="Критичность">'+sevBadge(d.severity)+'</td>'+
+    '<td data-label="Статус"><span class="badge grey">'+STATUS_LABEL[d.status]+'</span></td>'+
+    '<td data-label="Срок SLA">'+defectSlaBadge(d)+'</td></tr>'
+  ).join("") : '<tr><td colspan="5" style="color:var(--ink-3);">Нет открытых дефектов высокой/критической критичности</td></tr>';
+}
+
+function renderSchedule(){
+  const filter = document.getElementById("schedGroupFilter").value;
+  let rows = DATA.equipment.filter(e=>siteMatches(e.object)).map(e=>({e,status:eqStatus(e)}));
+  if(filter!=="all") rows = rows.filter(r=>r.status===filter);
+  rows.sort((a,b)=> new Date(eqNextDate(a.e)) - new Date(eqNextDate(b.e)));
+  const tb = document.querySelector("#tblSchedule tbody");
+  document.getElementById("scheduleEmpty").style.display = rows.length ? "none" : "block";
+  tb.innerHTML = rows.map(r=>{
+    const e=r.e;
+    return '<tr><td data-label="Объект">'+e.object+'</td><td data-label="Оборудование">'+e.name+'</td>'+
+    '<td data-label="Тип">'+e.type+'</td><td data-label="Вид ТО" class="mono">'+toLabel(e.periodDays)+'</td>'+
+    '<td data-label="Посл. ТО" class="mono">'+fmtDate(e.lastDate)+'</td>'+
+    '<td data-label="След. ТО" class="mono">'+fmtDate(eqNextDate(e))+'</td>'+
+    '<td data-label="Статус">'+statusBadge(r.status)+'</td>'+
+    '<td><button class="btn small" data-done="'+e.id+'">Выполнено</button></td></tr>';
+  }).join("");
+  tb.querySelectorAll("[data-done]").forEach(btn=>btn.addEventListener("click",()=>{
+    const eq = DATA.equipment.find(x=>x.id===btn.getAttribute("data-done"));
+    if(eq){ eq.lastDate = todayISO(); save(DATA); renderAll(); }
+  }));
+}
+
+function renderEquipment(){
+  const tb = document.querySelector("#tblEquipment tbody");
+  const rows = DATA.equipment.filter(e=>siteMatches(e.object));
+  tb.innerHTML = rows.map(e=>{
+    const status = eqStatus(e);
+    return '<tr><td data-label="Объект">'+e.object+'</td><td data-label="Оборудование">'+e.name+'</td>'+
+    '<td data-label="Тип">'+e.type+'</td><td data-label="Вид ТО" class="mono">'+toLabel(e.periodDays)+'</td>'+
+    '<td data-label="Посл. ТО" class="mono">'+fmtDate(e.lastDate)+'</td>'+
+    '<td data-label="След. ТО" class="mono">'+fmtDate(eqNextDate(e))+'</td>'+
+    '<td data-label="Статус">'+statusBadge(status)+'</td>'+
+    '<td data-label="Ответств.">'+(e.resp||"—")+'</td>'+
+    '<td><div class="row-actions"><button class="btn small" data-done2="'+e.id+'">Выполнено</button><button class="btn small danger" data-del="'+e.id+'">Удалить</button></div></td></tr>';
+  }).join("");
+  tb.querySelectorAll("[data-done2]").forEach(btn=>btn.addEventListener("click",()=>{
+    const eq = DATA.equipment.find(x=>x.id===btn.getAttribute("data-done2"));
+    if(eq){ eq.lastDate = todayISO(); save(DATA); renderAll(); }
+  }));
+  tb.querySelectorAll("[data-del]").forEach(btn=>btn.addEventListener("click",()=>{
+    DATA.equipment = DATA.equipment.filter(x=>x.id!==btn.getAttribute("data-del"));
+    save(DATA); renderAll();
+  }));
+}
+
+function renderDefects(){
+  const sevF = document.getElementById("dfSeverityFilter").value;
+  const stF = document.getElementById("dfStatusFilter").value;
+  let rows = DATA.defects.filter(d=>siteMatches(d.object));
+  if(sevF!=="all") rows = rows.filter(d=>d.severity===sevF);
+  if(stF!=="all") rows = rows.filter(d=>d.status===stF);
+  rows.sort((a,b)=> new Date(a.created)-new Date(b.created));
+  const tb = document.querySelector("#tblDefects tbody");
+  document.getElementById("defectsEmpty").style.display = rows.length ? "none" : "block";
+  tb.innerHTML = rows.map(d=>{
+    let actions = "";
+    if(d.status==="new") actions += '<button class="btn small" data-progress="'+d.id+'">В работу</button>';
+    if(d.status!=="resolved") actions += '<button class="btn small" data-resolve="'+d.id+'">Устранить</button>';
+    actions += '<button class="btn small danger" data-deldf="'+d.id+'">Удалить</button>';
+    const files = (d.attachments||[]);
+    const filesHtml = files.map((f,i)=>'<a href="'+f.dataUrl+'" download="'+f.name.replace(/"/g,"")+'" class="badge grey" style="margin:2px 4px 2px 0;text-decoration:none;">'+f.name+'</a>').join("")
+      + '<button class="btn small" data-addfile="'+d.id+'" style="margin-top:2px;">+ файл</button>';
+    return '<tr><td data-label="Объект">'+d.object+'</td><td data-label="Оборудование">'+d.equip+'</td>'+
+    '<td data-label="Описание">'+d.desc+'</td><td data-label="Критичность">'+sevBadge(d.severity)+'</td>'+
+    '<td data-label="Статус"><span class="badge grey">'+STATUS_LABEL[d.status]+'</span></td>'+
+    '<td data-label="Срок SLA">'+defectSlaBadge(d)+'</td>'+
+    '<td data-label="Исполнитель">'+(d.assignee||"—")+'</td>'+
+    '<td data-label="Файлы">'+filesHtml+'</td>'+
+    '<td><div class="row-actions">'+actions+'</div></td></tr>';
+  }).join("");
+  tb.querySelectorAll("[data-addfile]").forEach(btn=>btn.addEventListener("click",()=>{
+    const id = btn.getAttribute("data-addfile");
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*,.pdf,.doc,.docx";
+    input.multiple = true;
+    input.addEventListener("change", async ()=>{
+      const d = DATA.defects.find(x=>x.id===id);
+      if(!d) return;
+      d.attachments = d.attachments || [];
+      for(const file of Array.from(input.files)){
+        if(file.size > MAX_FILE_BYTES){ alert("Файл "+file.name+" превышает 3 МБ и не был добавлен."); continue; }
+        try{ d.attachments.push(await readFileAsDataURL(file)); }catch(e){ console.error(e); }
+      }
+      save(DATA); renderAll();
+    });
+    input.click();
+  }));
+  tb.querySelectorAll("[data-progress]").forEach(btn=>btn.addEventListener("click",()=>{
+    const d = DATA.defects.find(x=>x.id===btn.getAttribute("data-progress"));
+    if(d){ d.status="in_progress"; save(DATA); renderAll(); }
+  }));
+  tb.querySelectorAll("[data-resolve]").forEach(btn=>btn.addEventListener("click",()=>{
+    const d = DATA.defects.find(x=>x.id===btn.getAttribute("data-resolve"));
+    if(d){ d.status="resolved"; d.resolved=new Date().toISOString(); save(DATA); renderAll(); }
+  }));
+  tb.querySelectorAll("[data-deldf]").forEach(btn=>btn.addEventListener("click",()=>{
+    DATA.defects = DATA.defects.filter(x=>x.id!==btn.getAttribute("data-deldf"));
+    save(DATA); renderAll();
+  }));
+}
+
+function renderAll(){
+  renderSiteFilter();
+  renderKpis();
+  renderOverview();
+  renderSchedule();
+  renderEquipment();
+  renderDefects();
+}
+
+document.querySelectorAll(".tab").forEach(tab=>{
+  tab.addEventListener("click",()=>{
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("view-"+tab.getAttribute("data-view")).classList.add("active");
+  });
+});
+
+document.getElementById("siteFilter").addEventListener("change", renderAll);
+document.getElementById("schedGroupFilter").addEventListener("change", renderSchedule);
+document.getElementById("dfSeverityFilter").addEventListener("change", renderDefects);
+document.getElementById("dfStatusFilter").addEventListener("change", renderDefects);
+
+document.getElementById("addEquipmentBtn").addEventListener("click",()=>{
+  const obj = document.getElementById("eqObject").value.trim();
+  const name = document.getElementById("eqName").value.trim();
+  const type = document.getElementById("eqType").value;
+  const periodDays = parseInt(document.getElementById("eqToType").value,10);
+  const lastDate = document.getElementById("eqLastDate").value || todayISO();
+  const resp = document.getElementById("eqResp").value.trim();
+  const errEl = document.getElementById("eqErr");
+  if(!obj || !name){
+    errEl.textContent = "Укажите объект и название оборудования.";
+    errEl.style.display = "block";
+    return;
+  }
+  errEl.style.display = "none";
+  DATA.equipment.push({id:uid("eq"),object:obj,name:name,type:type,periodDays:periodDays,lastDate:lastDate,resp:resp});
+  save(DATA);
+  document.getElementById("eqObject").value="";
+  document.getElementById("eqName").value="";
+  document.getElementById("eqResp").value="";
+  document.getElementById("eqLastDate").value="";
+  renderAll();
+});
+
+document.getElementById("addDefectBtn").addEventListener("click", async ()=>{
+  const obj = document.getElementById("dfObject").value.trim();
+  const equip = document.getElementById("dfEquip").value.trim();
+  const severity = document.getElementById("dfSeverity").value;
+  const assignee = document.getElementById("dfAssignee").value.trim();
+  const desc = document.getElementById("dfDesc").value.trim();
+  const fileInput = document.getElementById("dfFile");
+  const errEl = document.getElementById("dfErr");
+  if(!obj || !desc){
+    errEl.textContent = "Укажите объект и описание дефекта.";
+    errEl.style.display = "block";
+    return;
+  }
+  errEl.style.display = "none";
+  const attachments = [];
+  for(const file of Array.from(fileInput.files||[])){
+    if(file.size > MAX_FILE_BYTES){ errEl.textContent = "Файл "+file.name+" превышает 3 МБ и не был добавлен."; errEl.style.display="block"; continue; }
+    try{ attachments.push(await readFileAsDataURL(file)); }catch(e){ console.error(e); }
+  }
+  DATA.defects.push({id:uid("df"),object:obj,equip:equip||"—",desc:desc,severity:severity,status:"new",created:new Date().toISOString(),resolved:null,assignee:assignee,attachments:attachments});
+  save(DATA);
+  document.getElementById("dfObject").value="";
+  document.getElementById("dfEquip").value="";
+  document.getElementById("dfAssignee").value="";
+  document.getElementById("dfDesc").value="";
+  fileInput.value="";
+  renderAll();
+});
+
+document.getElementById("downloadTemplateBtn").addEventListener("click",()=>{
+  const blob = new Blob([csvTemplateText()], {type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "shablon_oborudovanie.csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("importCsvBtn").addEventListener("click",()=>{
+  document.getElementById("csvFileInput").click();
+});
+
+document.getElementById("csvFileInput").addEventListener("change", async (ev)=>{
+  const file = ev.target.files[0];
+  const csvErr = document.getElementById("csvErr");
+  csvErr.style.display = "none";
+  if(!file) return;
+  try{
+    const text = await file.text();
+    const rows = parseCsv(text);
+    let added = 0, skipped = 0;
+    rows.forEach(cells=>{
+      const [object,name,type,periodDaysRaw,lastDateRaw,resp] = cells;
+      const periodDays = parseInt(periodDaysRaw,10);
+      const lastDate = /^\d{4}-\d{2}-\d{2}$/.test((lastDateRaw||"").trim()) ? lastDateRaw.trim() : todayISO();
+      if(!object || !name || !periodDays){ skipped++; return; }
+      DATA.equipment.push({id:uid("eq"),object:object,name:name,type:type||"—",periodDays:periodDays,lastDate:lastDate,resp:(resp||"").trim()});
+      added++;
+    });
+    save(DATA);
+    renderAll();
+    if(skipped>0){ csvErr.textContent = "Добавлено строк: "+added+". Пропущено (неполные данные): "+skipped+"."; csvErr.style.display="block"; }
+  }catch(e){
+    csvErr.textContent = "Не удалось разобрать файл: "+e.message;
+    csvErr.style.display = "block";
+  }
+  ev.target.value = "";
+});
+
+renderAll();
+</script>
+</body>
+</html>
